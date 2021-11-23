@@ -7,7 +7,7 @@ const (
 
 	// Server
 	defaultServerAddress = "0.0.0.0"
-	defaultServerPort    = "9090"
+	defaultServerPort    = "9091"
 
 	// Gateway
 	defaultGatewayEnable      = false
@@ -55,7 +55,7 @@ const (
 	// Health
 	defaultInternalEnable    = true
 	defaultInternalAddress   = "0.0.0.0"
-	defaultInternalPort      = "8081"
+	defaultInternalPort      = "8086"
 	defaultInternalHealth    = "/healthz"
 	defaultInternalReadiness = "/ready"
 
@@ -70,19 +70,22 @@ const (
 
 	// Logging
 	defaultLoggingLevel = "debug"
+	// Dapr
+	defaultDaprPubsubName     = "pubsub"
+	defaultDaprGrpcPort       = 3500
+	defaultDaprPublishTopic   = "topicpub"
+	defaultDaprAppPort        = 1251
+	defaultDaprSubscribeTopic = "tobicsub"
 )
 
 var (
+	flagDaprGrpcPort       = pflag.Int("dapr.grpcPort", defaultDaprGrpcPort, "port of dapr sidecar that receives pubsub messages")
+	flagDaprPublishTopic   = pflag.String("dapr.publish.topic", defaultDaprPublishTopic, "topic where dapr publish the new messages")
+	flagDaprAppPort        = pflag.Int("dapr.appPort", defaultDaprAppPort, "port of dapr sidecar that waits for the published messages")
+	flagDaprSubscribeTopic = pflag.String("dapr.subscribe.topic", defaultDaprSubscribeTopic, "topic name the dapr is subscribed to")
+	flagDaprPubsubName     = pflag.String("dapr.pubsub.name", defaultDaprPubsubName, "the dapr pubsub name")
+
 	// define flag overrides
-	flagServerAddress = pflag.String("server.address", defaultServerAddress, "adress of gRPC server")
-	flagServerPort    = pflag.String("server.port", defaultServerPort, "port of gRPC server")
-
-	flagGatewayEnable      = pflag.Bool("gateway.enable", defaultGatewayEnable, "enable gatway")
-	flagGatewayAddress     = pflag.String("gateway.address", defaultGatewayAddress, "address of gateway server")
-	flagGatewayPort        = pflag.String("gateway.port", defaultGatewayPort, "port of gateway server")
-	flagGatewayURL         = pflag.String("gateway.endpoint", defaultGatewayURL, "endpoint of gateway server")
-	flagGatewaySwaggerFile = pflag.String("gateway.swaggerFile", defaultGatewaySwaggerFile, "directory of swagger.json file")
-
 	flagDatabaseEnable   = pflag.Bool("database.enable", defaultDatabaseEnable, "enable database")
 	flagDatabaseDSN      = pflag.String("database.dsn", defaultDatabaseDSN, "DSN of the database")
 	flagDatabaseType     = pflag.String("database.type", defaultDatabaseType, "type of the database")
@@ -93,6 +96,15 @@ var (
 	flagDatabasePassword = pflag.String("database.password", defaultDatabasePassword, "database password")
 	flagDatabaseSSL      = pflag.String("database.ssl", defaultDatabaseSSL, "database ssl mode")
 	flagDatabaseOption   = pflag.String("database.option", defaultDatabaseOption, "define custom option to db driver")
+
+	flagServerAddress = pflag.String("server.address", defaultServerAddress, "adress of gRPC server")
+	flagServerPort    = pflag.String("server.port", defaultServerPort, "port of gRPC server")
+
+	flagGatewayEnable      = pflag.Bool("gateway.enable", defaultGatewayEnable, "enable gatway")
+	flagGatewayAddress     = pflag.String("gateway.address", defaultGatewayAddress, "address of gateway server")
+	flagGatewayPort        = pflag.String("gateway.port", defaultGatewayPort, "port of gateway server")
+	flagGatewayURL         = pflag.String("gateway.endpoint", defaultGatewayURL, "endpoint of gateway server")
+	flagGatewaySwaggerFile = pflag.String("gateway.swaggerFile", defaultGatewaySwaggerFile, "directory of swagger.json file")
 
 	flagPubsubEnable       = pflag.Bool("atlas.pubsub.enable", defaultPubsubEnable, "enable application with pubsub")
 	flagPubsubAddress      = pflag.String("atlas.pubsub.address", defaultPubsubAddress, "address or FQDN of the pubsub service")
