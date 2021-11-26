@@ -9,16 +9,17 @@ require (
 	github.com/dapr/dapr v1.5.0 // indirect
 	github.com/dapr/go-sdk v1.3.0
 	github.com/envoyproxy/protoc-gen-validate v0.6.2
-	github.com/golang/protobuf v1.5.2
+	github.com/golang-migrate/migrate/v4 v4.15.1
+	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/uuid v1.3.0 // indirect
-	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
-	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
+	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0 // indirect
+	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.6.0
 	github.com/infobloxopen/atlas-app-toolkit v1.1.1
 	github.com/infobloxopen/protoc-gen-gorm v1.0.1
 	github.com/jinzhu/gorm v1.9.16
 	github.com/lib/pq v1.10.4 // indirect
-	github.com/prometheus/client_golang v1.11.0
+	github.com/prometheus/client_golang v1.11.0 // indirect
 	github.com/prometheus/common v0.32.1 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/sirupsen/logrus v1.8.1

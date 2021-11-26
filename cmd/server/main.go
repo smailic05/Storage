@@ -5,6 +5,9 @@ import (
 	"log"
 	"strings"
 
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"github.com/storage/pkg/dapr"
 
 	"github.com/sirupsen/logrus"
@@ -14,10 +17,21 @@ import (
 	"github.com/infobloxopen/atlas-app-toolkit/gorm/resource"
 )
 
+const (
+	pubsubName = "messages"
+	subPort    = ":50001"
+	pubPort    = "3501"
+)
+
 func main() {
 	done := make(chan struct{})
 	logger := NewLogger()
-	dapr.InitPubsub("Storage", "messages", ":50001", "3501", logger, done)
+	setDBConnection()
+	db, err := gorm.Open("postgres", viper.GetString("database.dsn"))
+	if err != nil {
+		logger.Fatal(err)
+	}
+	dapr.InitPubsub(viper.GetString("app.id"), pubsubName, subPort, pubPort, logger, done, db)
 	<-done
 }
 
