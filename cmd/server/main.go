@@ -17,21 +17,17 @@ import (
 	"github.com/infobloxopen/atlas-app-toolkit/gorm/resource"
 )
 
-const (
-	pubsubName = "messages"
-	subPort    = ":50001"
-	pubPort    = "3501"
-)
-
 func main() {
 	done := make(chan struct{})
 	logger := NewLogger()
 	setDBConnection()
-	db, err := gorm.Open("postgres", viper.GetString("database.dsn"))
+	db, err := gorm.Open(viper.GetString("database.type"), viper.GetString("database.dsn"))
 	if err != nil {
 		logger.Fatal(err)
 	}
-	dapr.InitPubsub(viper.GetString("app.id"), pubsubName, subPort, pubPort, logger, done, db)
+	dapr.InitPubsub(viper.GetString("app.id"), viper.GetString("dapr.pubsub.name"),
+		viper.GetString("dapr.subscribe.port"), viper.GetString("dapr.publish.port"),
+		logger, done, db)
 	<-done
 }
 

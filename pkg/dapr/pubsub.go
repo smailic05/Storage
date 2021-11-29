@@ -12,18 +12,15 @@ import (
 	"github.com/dapr/go-sdk/client"
 	"github.com/dapr/go-sdk/service/common"
 	daprd "github.com/dapr/go-sdk/service/grpc"
+	"github.com/google/uuid"
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
+	"github.com/storage/pkg/model"
 )
 
-const (
-	pubsubName = "messages"
-	subPort    = ":50001"
-	pubPort    = "3501"
-	pubTopic   = "respond"
-	Err        = "Error"
-	// TODO use viper
+var (
+	Err = "Error"
 )
 
 type Mode struct {
@@ -38,12 +35,15 @@ type PubSub struct {
 	mode        Mode
 	Description string
 	Requests    int64
+	pubsubName  string
+	pubTopic    string
 	db          *gorm.DB
 	mtx         sync.RWMutex
+	mtxDescr    sync.RWMutex
 }
 
 type Message struct {
-	Id   int
+	Id   uuid.UUID
 	Data string
 }
 
@@ -66,6 +66,8 @@ func InitPubsub(description string, pubsubName string, subPort string, pubPort s
 		Requests:    0,
 		mode:        mode,
 		db:          db,
+		pubsubName:  pubsubName,
+		pubTopic:    viper.GetString("dapr.publish.topic"),
 	}
 	s, err := daprd.NewService(subPort)
 	if err != nil {
@@ -74,32 +76,32 @@ func InitPubsub(description string, pubsubName string, subPort string, pubPort s
 
 	sub := &common.Subscription{
 		PubsubName: pubsubName,
-		Topic:      "info",
+		Topic:      model.GetDescriptionTopic,
 	}
 	if err := s.AddTopicEventHandler(sub, pubSub.infoHandler); err != nil {
 		log.Fatalf("error adding invocation handler: %v", err)
 	}
-	sub.Topic = "uptime"
+	sub.Topic = model.GetUptimeTopic
 	if err := s.AddTopicEventHandler(sub, pubSub.uptimeHandler); err != nil {
 		log.Fatalf("error adding invocation handler: %v", err)
 	}
-	sub.Topic = "requests"
+	sub.Topic = model.GetRequestsTopic
 	if err := s.AddTopicEventHandler(sub, pubSub.requestsHandler); err != nil {
 		log.Fatalf("error adding invocation handler: %v", err)
 	}
-	sub.Topic = "update-info"
+	sub.Topic = model.UpdateDescriptionTopic
 	if err := s.AddTopicEventHandler(sub, pubSub.updateInfoHandler); err != nil {
 		log.Fatalf("error adding invocation handler: %v", err)
 	}
-	sub.Topic = "get-mode"
+	sub.Topic = model.GetModeTopic
 	if err := s.AddTopicEventHandler(sub, pubSub.getModeHandler); err != nil {
 		log.Fatalf("error adding invocation handler: %v", err)
 	}
-	sub.Topic = "set-mode"
+	sub.Topic = model.SetModeTopic
 	if err := s.AddTopicEventHandler(sub, pubSub.setModeHandler); err != nil {
 		log.Fatalf("error adding invocation handler: %v", err)
 	}
-	sub.Topic = "restart"
+	sub.Topic = model.RestartTopic
 	if err := s.AddTopicEventHandler(sub, pubSub.restartHandler); err != nil {
 		log.Fatalf("error adding invocation handler: %v", err)
 	}
@@ -116,25 +118,22 @@ func (p *PubSub) infoHandler(ctx context.Context, e *common.TopicEvent) (retry b
 	message := Message{}
 	parsed, ok := e.Data.([]byte)
 	if !ok {
-		p.client.PublishEvent(ctx, pubsubName, pubTopic, []byte(Err))
 		return false, nil
 	}
 	err = json.Unmarshal(parsed, &message)
 	if err != nil {
 		p.Logger.Debug(err)
-		p.client.PublishEvent(ctx, pubsubName, pubTopic, []byte(Err))
 		return false, err
 	}
-	message.Data = p.Description
+	message.Data = p.GetDescriptionFromServer()
 	messageMarshal, err := json.Marshal(message)
 	if err != nil {
 		p.Logger.Debug(err)
-		p.client.PublishEvent(ctx, pubsubName, pubTopic, messageMarshal)
 		return false, err
 	}
-	p.client.PublishEvent(ctx, pubsubName, pubTopic, messageMarshal)
+	p.client.PublishEvent(ctx, p.pubsubName, p.pubTopic, messageMarshal)
 	p.IncRequests()
-	log.Printf("%s", e.Data)
+	log.Printf("%s", messageMarshal)
 	return false, nil
 }
 func (p *PubSub) updateInfoHandler(ctx context.Context, e *common.TopicEvent) (retry bool, err error) {
@@ -148,13 +147,13 @@ func (p *PubSub) updateInfoHandler(ctx context.Context, e *common.TopicEvent) (r
 		p.Logger.Debug(err)
 		return false, err
 	}
-	p.Description = message.Data
+	p.UpdateDescriptionFromServer(message.Data)
 	messageMarshal, err := json.Marshal(message)
 	if err != nil {
 		p.Logger.Debug(err)
 		return false, err
 	}
-	p.client.PublishEvent(ctx, pubsubName, pubTopic, messageMarshal)
+	p.client.PublishEvent(ctx, p.pubsubName, p.pubTopic, messageMarshal)
 	p.IncRequests()
 	log.Printf("%s", e.Data)
 	return false, nil
@@ -178,7 +177,7 @@ func (p *PubSub) uptimeHandler(ctx context.Context, e *common.TopicEvent) (retry
 		p.Logger.Debug(err)
 		return false, err
 	}
-	p.client.PublishEvent(ctx, pubsubName, pubTopic, messageMarshal)
+	p.client.PublishEvent(ctx, p.pubsubName, p.pubTopic, messageMarshal)
 	p.IncRequests()
 	log.Printf("%s", e.Data)
 	return false, nil
@@ -195,13 +194,15 @@ func (p *PubSub) getModeHandler(ctx context.Context, e *common.TopicEvent) (retr
 		p.Logger.Debug(err)
 		return false, err
 	}
-	message.Data = fmt.Sprintf("%d", p.mode.IsActive)
+	mode := Mode{}
+	p.db.First(&mode)
+	message.Data = fmt.Sprintf("%d", mode.IsActive)
 	messageMarshal, err := json.Marshal(message)
 	if err != nil {
 		p.Logger.Debug(err)
 		return false, err
 	}
-	p.client.PublishEvent(ctx, pubsubName, pubTopic, messageMarshal)
+	p.client.PublishEvent(ctx, p.pubsubName, p.pubTopic, messageMarshal)
 	p.IncRequests()
 	log.Printf("%s", e.Data)
 	return false, nil
@@ -223,9 +224,15 @@ func (p *PubSub) setModeHandler(ctx context.Context, e *common.TopicEvent) (retr
 		return false, err
 	}
 	p.db.Save(p.mode)
+	messageMarshal, err := json.Marshal(message)
+	if err != nil {
+		p.Logger.Debug(err)
+		return false, err
+	}
+	p.client.PublishEvent(ctx, p.pubsubName, p.pubTopic, messageMarshal)
 	p.IncRequests()
 	log.Printf("%s", e.Data)
-	return false, err
+	return false, nil
 }
 
 func (p *PubSub) requestsHandler(ctx context.Context, e *common.TopicEvent) (retry bool, err error) {
@@ -245,9 +252,9 @@ func (p *PubSub) requestsHandler(ctx context.Context, e *common.TopicEvent) (ret
 		p.Logger.Debug(err)
 		return false, err
 	}
-	p.client.PublishEvent(ctx, pubsubName, pubTopic, messageMarshal)
+	p.client.PublishEvent(ctx, p.pubsubName, p.pubTopic, messageMarshal)
 	p.IncRequests()
-	log.Printf("%s", e.Data)
+	log.Printf("%s", messageMarshal)
 	return false, nil
 }
 
@@ -260,13 +267,24 @@ func (p *PubSub) restartHandler(ctx context.Context, e *common.TopicEvent) (retr
 
 func (p *PubSub) GetRequestsFromServer() int {
 	p.mtx.RLock()
-	tmp := p.Requests
-	p.mtx.RUnlock()
-	return int(tmp)
+	defer p.mtx.RUnlock()
+	return int(p.Requests)
 }
 
 func (p *PubSub) IncRequests() {
 	p.mtx.Lock()
 	p.Requests++
 	p.mtx.Unlock()
+}
+
+func (p *PubSub) GetDescriptionFromServer() string {
+	p.mtxDescr.RLock()
+	defer p.mtxDescr.RUnlock()
+	return p.Description
+}
+
+func (p *PubSub) UpdateDescriptionFromServer(description string) {
+	p.mtxDescr.Lock()
+	p.Description = description
+	p.mtxDescr.Unlock()
 }

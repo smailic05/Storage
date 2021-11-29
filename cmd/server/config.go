@@ -72,18 +72,22 @@ const (
 	defaultLoggingLevel = "debug"
 	// Dapr
 	defaultDaprPubsubName     = "messages"
-	defaultDaprGrpcPort       = 3500
-	defaultDaprPublishTopic   = "info"
+	defaultDaprGrpcPort       = "3500"
+	defaultDaprPublishTopic   = "respond"
 	defaultDaprAppPort        = 1251
 	defaultDaprSubscribeTopic = "tobicsub"
+	defaultDaprSubscribePort  = ":50001"
+	defaultDaprPublishPort    = "3501"
 )
 
 var (
-	flagDaprGrpcPort       = pflag.Int("dapr.grpcPort", defaultDaprGrpcPort, "port of dapr sidecar that receives pubsub messages")
+	flagDaprGrpcPort       = pflag.String("dapr.grpcPort", defaultDaprGrpcPort, "port of dapr sidecar that receives pubsub messages")
 	flagDaprPublishTopic   = pflag.String("dapr.publish.topic", defaultDaprPublishTopic, "topic where dapr publish the new messages")
 	flagDaprAppPort        = pflag.Int("dapr.appPort", defaultDaprAppPort, "port of dapr sidecar that waits for the published messages")
 	flagDaprSubscribeTopic = pflag.String("dapr.subscribe.topic", defaultDaprSubscribeTopic, "topic name the dapr is subscribed to")
 	flagDaprPubsubName     = pflag.String("dapr.pubsub.name", defaultDaprPubsubName, "the dapr pubsub name")
+	flagDaprSubscribePort  = pflag.String("dapr.subscribe.port", defaultDaprSubscribePort, "the dapr port to which we subscribe")
+	flagDaprPublishPort    = pflag.String("dapr.publish.port", defaultDaprPublishPort, "the dapr port to which we publish")
 
 	// define flag overrides
 	flagDatabaseEnable   = pflag.Bool("database.enable", defaultDatabaseEnable, "enable database")
